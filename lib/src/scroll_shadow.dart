@@ -15,6 +15,8 @@ class ScrollShadow extends StatefulWidget {
     this.fadeInCurve = Curves.easeIn,
     this.fadeOutCurve = Curves.easeOut,
     this.ignoreInteraction = true,
+    this.showStartShadow = true,
+    this.showEndShadow = true,
   });
 
   /// [color] determines rendered color of shadows.
@@ -53,6 +55,9 @@ class ScrollShadow extends StatefulWidget {
   ///
   /// Default: `true`
   final bool ignoreInteraction;
+
+  final bool showEndShadow;
+  final bool showStartShadow;
 
   @override
   State<ScrollShadow> createState() => _ScrollShadowState();
@@ -105,12 +110,12 @@ class _ScrollShadowState extends State<ScrollShadow> {
     var startShadow = _getShadow(startGradient);
     var endShadow = _getShadow(endGradient);
     if (_animate) {
-      startShadow = _getAnimatedShadow(startShadow, reachedStart);
-      endShadow = _getAnimatedShadow(endShadow, reachedEnd);
+      startShadow = _getAnimatedShadow(startShadow, reachedStart || !widget.showStartShadow);
+      endShadow = _getAnimatedShadow(endShadow, reachedEnd || !widget.showEndShadow);
     }
     if (widget.ignoreInteraction) {
-      startShadow = _getNoninteractive(startShadow);
-      endShadow = _getNoninteractive(endShadow);
+      startShadow = _getAnimatedShadow(startShadow, !widget.showStartShadow);
+      endShadow = _getAnimatedShadow(endShadow, !widget.showEndShadow);
     }
     startShadow = _getPositioned(startShadow, true);
     endShadow = _getPositioned(endShadow, false);
@@ -148,13 +153,6 @@ class _ScrollShadowState extends State<ScrollShadow> {
               curve: reachedEdge ? widget.fadeOutCurve : widget.fadeInCurve,
               child: shadow,
             );
-
-  Widget? _getNoninteractive(final Widget? shadow) => shadow == null
-      ? null
-      : IgnorePointer(
-          ignoring: true,
-          child: shadow,
-        );
 
   Widget? _getPositioned(final Widget? shadow, final bool start) {
     if (shadow == null) return null;
