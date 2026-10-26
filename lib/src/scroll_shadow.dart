@@ -2,6 +2,7 @@
 library flutter_scroll_shadow;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// Wraps a scrollable child in `ScrollShadow`s.
 class ScrollShadow extends StatefulWidget {
@@ -181,16 +182,39 @@ class _ScrollShadowState extends State<ScrollShadow> {
   }
 
   bool _handleNewMetrics(final ScrollMetrics metrics) {
+    // Scrollables also notify during layout, e.g. when new content dimensions
+    // start a ballistic activity. A setState at that point can get lost below
+    // a LayoutBuilder in release builds and freeze its whole subtree, so the
+    // update waits for the end of the frame.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      if (_deferredMetrics == null) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          final deferredMetrics = _deferredMetrics;
+          _deferredMetrics = null;
+          if (mounted && deferredMetrics != null) {
+            _applyMetrics(deferredMetrics);
+          }
+        });
+      }
+      _deferredMetrics = metrics;
+    } else {
+      _applyMetrics(metrics);
+    }
+    // Consume the notification to prevent possible ScrollShadow ancestor to interpret them a second timme
+    return true;
+  }
+
+  void _applyMetrics(final ScrollMetrics metrics) {
     if (_axis != metrics.axis) {
       setState(() => _axis = metrics.axis);
     }
     reachedStart = metrics.pixels <= metrics.minScrollExtent;
     reachedEnd = metrics.pixels >= metrics.maxScrollExtent;
     _animate = true;
-    // Consume the notification to prevent possible ScrollShadow ancestor to interpret them a second timme
-    return true;
   }
 
+  ScrollMetrics? _deferredMetrics;
   Axis? _axis;
   bool _reachedStart = true;
   bool _reachedEnd = true;
